@@ -36,6 +36,10 @@ public class jsonthing : MonoBehaviour
         Request.postJson("https://example.com/api/v1/postJson.php", postDatJSON, (JSONNode data) => {
             Debug.Log(data["Property Key"]);
         }, this);
+        
+        Request.getImage("https://example.com/images/image.png", (Texture2D tex) => {
+            Texture2D finalImg = tex;
+        }, this);
     }
 
     // Update is called once per frame
