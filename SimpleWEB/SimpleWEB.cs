@@ -8,6 +8,53 @@ using System.IO;
 using System.Text;
 
 namespace SimpleWEB{
+    public class RequestQueue{
+        public Dictionary<string, (Action<object>, reqType)> urlQueue = new Dictionary<string, (Action<object>, reqType)>();
+        public MonoBehaviour coReq;
+        public RequestQueue(MonoBehaviour coRq) => coReq = coRq;
+
+        public void Add(string Url, reqType rc, Action<object> phone){
+            urlQueue.Add(Url, (phone, rc));
+        }
+
+        public void Start(Action onFinish = null){
+            coReq.StartCoroutine(runQueue(onFinish));
+        }
+
+        public IEnumerator runQueue(Action onFinish){
+            foreach(KeyValuePair<string, (Action<object>, reqType)> kv in urlQueue){
+                bool canGo = false;
+                switch(kv.Value.Item2){
+                    case reqType.get:
+                        Request.get(kv.Key, (string ret) => {
+                            kv.Value.Item1(ret);
+                            canGo = true;
+                        }, coReq);
+                    break;
+                    case reqType.texture:
+                        Request.getImage(kv.Key, (Texture2D ret) => {
+                            kv.Value.Item1(ret);
+                            canGo = true;
+                        }, coReq);
+                    break;
+                }
+                yield return new WaitUntil(() => canGo == true);
+            }
+            if(onFinish != null){
+                onFinish();
+            }
+            urlQueue.Clear();
+            yield return 0;
+        }
+    }
+
+    public enum reqType{
+        get,
+        post,
+        getJson,
+        texture
+    }
+
     public class Request : MonoBehaviour
     {
         // Start is called before the first frame update
@@ -56,6 +103,23 @@ namespace SimpleWEB{
                 if(get.result == UnityWebRequest.Result.Success){
                     string downloadText = get.downloadHandler.text;
                     callBack(downloadText);
+                }else{
+                    Debug.LogError("Error getting string!");
+                }
+            }
+            yield return 0;
+        }
+
+        public static void getImage(string url, Action<Texture2D> callBack, MonoBehaviour coReq){
+            coReq.StartCoroutine(imgRequest(url, callBack));
+        }
+
+        public static IEnumerator imgRequest(string url, Action<Texture2D> callBack){
+            using(UnityWebRequest get = UnityWebRequestTexture.GetTexture(url)){
+                yield return get.SendWebRequest();
+                if(get.result == UnityWebRequest.Result.Success){
+                    Texture2D getTex = DownloadHandlerTexture.GetContent(get);
+                    callBack(getTex);
                 }else{
                     Debug.LogError("Error getting string!");
                 }
